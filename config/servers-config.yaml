@@ -1,0 +1,2 @@
+grpc-port: "9000"
+http-port: "8080"

@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package="github.com/artemKapitonov/url-shortner/pkg/url-shortner_v1";
+
+message FullURL {
+    string url = 1;
+}
+
+message ShortURL {
+    string url = 1;
+}
+
+service URLShortner{
+    rpc Get(ShortURL) returns(FullURL) {};
+    rpc Create(FullURL) returns(ShortURL) {};
+}
