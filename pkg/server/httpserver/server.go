@@ -38,7 +38,7 @@ func New(handler http.Handler, port string) *Server {
 func (s *Server) Start() error {
 	var err error
 
-	slog.Info(fmt.Sprintf("Server started at: %s", s.server.Addr))
+	slog.Info(fmt.Sprintf("Http server started at address: %s", s.server.Addr))
 
 	go func() {
 		err = s.server.ListenAndServe()

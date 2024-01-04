@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net"
 
-	grpcUrlShortner "github.com/artemKapitonov/url-shortner/internal/controller/grpc/v1"
+	"github.com/artemKapitonov/url-shortner/internal/controller/grpc_api"
 	"google.golang.org/grpc"
 )
 
@@ -17,7 +17,7 @@ type GRPCApp struct {
 func NewGRPCServer(port string) *GRPCApp {
 	grpcServer := grpc.NewServer()
 
-	grpcUrlShortner.Register(grpcServer)
+	grpc_api.Register(grpcServer)
 
 	return &GRPCApp{
 		port:   port,

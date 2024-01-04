@@ -3,6 +3,9 @@ package app
 import (
 	"context"
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/artemKapitonov/url-shortner/internal/app/grpcapp"
 	"github.com/artemKapitonov/url-shortner/internal/controller"
@@ -12,6 +15,7 @@ import (
 	"github.com/artemKapitonov/url-shortner/pkg/logging"
 	"github.com/artemKapitonov/url-shortner/pkg/server/httpserver"
 	"github.com/ilyakaznacheev/cleanenv"
+	"golang.org/x/sync/errgroup"
 )
 
 // App struct of url-shortner application.
@@ -20,7 +24,7 @@ type App struct {
 	Service    *service.Service
 	Storage    *storage.Storage
 	HttpServer *httpserver.Server
-	GRPCServer *grpcapp.GRPCApp //TODO
+	GrpcServer *grpcapp.GRPCApp
 }
 
 type serversCfg struct {
@@ -32,7 +36,9 @@ type serversCfg struct {
 func New() *App {
 	var app App
 
-	slog.SetDefault(logging.New().Logger)
+	var logger = logging.New()
+
+	slog.SetDefault(logger.Logger)
 
 	ctx := context.TODO()
 
@@ -41,7 +47,7 @@ func New() *App {
 		slog.Error("Can't get db configs Error:", err)
 	}
 
-	ServCfg, err := getServersConfig()
+	ServersCfg, err := getServersConfig()
 	if err != nil {
 		slog.Error("Can't get servers configs Error:", err)
 	}
@@ -57,15 +63,37 @@ func New() *App {
 
 	app.Controller = controller.New(app.Service)
 
-	app.GRPCServer = grpcapp.NewGRPCServer(ServCfg.GrpsPort)
+	app.GrpcServer = grpcapp.NewGRPCServer(ServersCfg.GrpsPort)
+
+	app.HttpServer = httpserver.New(app.Controller.InitRoutes(logger), ServersCfg.HttpPort)
 
 	return &app
 }
 
 // Run method of App for runing application.
-func (a *App) Run() error {
-	slog.Info("try starting application...")
-	err := a.GRPCServer.RunGRPCServer()
+func (a *App) Run() {
+	g := new(errgroup.Group)
+	g.Go(a.GrpcServer.RunGRPCServer)
+	g.Go(a.HttpServer.Start)
+
+	if err := g.Wait(); err != nil {
+		panic(err)
+	}
+
+	ShutdownApp(a)
+}
+
+func ShutdownApp(a *App) error {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	<-quit
+
+	err := a.HttpServer.Shutdown(context.Background())
+	if err != nil {
+		return err
+	}
+
+	a.GrpcServer.Server.GracefulStop()
 	if err != nil {
 		return err
 	}

@@ -1,17 +1,24 @@
 package controller
 
 import (
-	grpcUrlShortner "github.com/artemKapitonov/url-shortner/internal/controller/grpc/v1"
+	"github.com/artemKapitonov/url-shortner/internal/controller/grpc_api"
+	"github.com/artemKapitonov/url-shortner/internal/controller/grpc_api/convertor"
+	"github.com/artemKapitonov/url-shortner/internal/controller/http_api/v1"
 	"github.com/artemKapitonov/url-shortner/internal/service"
 	url_shortner_v1 "github.com/artemKapitonov/url-shortner/pkg/url-shortner_v1"
 )
 
 type Controller struct {
-	grpcUrlShortner.GRPCserverAPI
+	grpc_api.GrpcServerApi
+	http_api.HttpServerApi
 }
 
-func New(service *service.Service) *Controller {
+func New(s *service.Service) *Controller {
 	return &Controller{
-		GRPCserverAPI: *grpcUrlShortner.NewGRPCServerAPI(service, &url_shortner_v1.UnimplementedURLShortnerServer{}),
+		GrpcServerApi: *grpc_api.NewGRPCServerAPI(grpc_api.GrpcOptions{
+			Service:    s,
+			Convertor:  convertor.New(),
+			UnImplServ: &url_shortner_v1.UnimplementedURLShortnerServer{},
+		}),
 	}
 }
