@@ -1,0 +1,4 @@
+time=2024-01-05T18:19:50.864+03:00 level=INFO msg="Succesfully connnected to the database."
+time=2024-01-05T18:19:50.864+03:00 level=INFO msg="HTTP server started at address :8080"
+time=2024-01-05T18:19:50.864+03:00 level=INFO msg="gPRC server start on address :9000"
+time=2024-01-05T18:20:23.895+03:00 level=INFO msg="Application stopped succesfully"

@@ -1,13 +1,19 @@
 package service
 
-import "github.com/artemKapitonov/url-shortner/internal/service/storage"
+import (
+	"log/slog"
+
+	"github.com/artemKapitonov/url-shortener/internal/service/storage"
+)
 
 type Service struct {
-	UrlShortner
+	log *slog.Logger
+	UrlShortener
 }
 
-func New(storage *storage.Storage) *Service {
+func New(storage *storage.Storage, log *slog.Logger) *Service {
 	return &Service{
-		UrlShortner: storage.URLShortnerPsql,
+		UrlShortener: storage.Client,
+		log:          log,
 	}
 }

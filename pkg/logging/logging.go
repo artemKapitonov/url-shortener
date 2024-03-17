@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"flag"
 	"io"
 	"log/slog"
 	"os"
@@ -14,47 +13,96 @@ type Logger struct {
 }
 
 const (
-	flagFile  = "-file"
-	flagLocal = "-local"
-	flagDev   = "dev"
-	flagProd  = "prod"
+	writerFile   = "file"
+	writerStdout = "stdout"
+	levelLocal   = "local"
+	levelDev     = "dev"
+	levelProd    = "prod"
+	handlerJSON  = "json"
+	handlerText  = "text"
 )
 
-// New create a new dir "logs" and "all.log" file for writing logs using slog.Logger.
-func New() *Logger {
+type Config struct {
+	Level   string `yaml:"level" env:"LOG_LEVEL"`
+	Handler string `yaml:"handler" env:"LOG_HANDLER"`
+	Writer  string `yaml:"writer" env:"LOG_WRITER"`
+}
 
-	var writer io.Writer
+// New setup new logging.Logger with config params.
+func New(cfg Config) *Logger {
 
-	var logger *slog.Logger
+	lvl := selectLoggerLevel(cfg.Level)
 
-	flag.Parse()
+	writer := selectLoggerWriter(cfg.Writer)
 
-	switch flag.Arg(1) {
-	case flagFile:
-		writer = getLogFile()
-
-	default:
-		writer = os.Stdout
-	}
-
-	switch flag.Arg(2) {
-	case flagLocal:
-		logger = slog.New(slog.NewTextHandler(writer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-
-	case flagDev:
-		logger = slog.New(slog.NewJSONHandler(writer, &slog.HandlerOptions{Level: slog.LevelInfo}))
-
-	case flagProd:
-		logger = slog.New(slog.NewJSONHandler(writer, &slog.HandlerOptions{Level: slog.LevelError}))
-
-	default:
-		logger = slog.New(slog.NewTextHandler(writer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	}
+	logger := selectLoggerHandler(loggerOptions{lvl: lvl, w: writer, h: cfg.Handler})
 
 	return &Logger{
 		Logger: logger,
 		Writer: writer,
 	}
+}
+
+func selectLoggerWriter(w string) io.Writer {
+
+	var writer io.Writer
+
+	switch w {
+
+	case writerFile:
+		writer = getLogFile()
+
+	case writerStdout:
+		writer = os.Stdout
+
+	default:
+		writer = os.Stdout
+	}
+
+	return writer
+}
+
+func selectLoggerLevel(level string) slog.Level {
+	var lvl slog.Level
+
+	switch level {
+	case levelLocal:
+		lvl = slog.LevelDebug
+
+	case levelDev:
+		lvl = slog.LevelInfo
+
+	case levelProd:
+		lvl = slog.LevelError
+
+	default:
+		lvl = slog.LevelDebug
+	}
+
+	return lvl
+}
+
+type loggerOptions struct {
+	h   string
+	lvl slog.Level
+	w   io.Writer
+}
+
+func selectLoggerHandler(opts loggerOptions) *slog.Logger {
+	var logger *slog.Logger
+
+	switch opts.h {
+	case handlerJSON:
+		logger = slog.New(slog.NewJSONHandler(opts.w, &slog.HandlerOptions{Level: opts.lvl}))
+
+	case handlerText:
+		logger = slog.New(slog.NewTextHandler(opts.w, &slog.HandlerOptions{Level: opts.lvl}))
+
+	default:
+		logger = slog.New(slog.NewTextHandler(opts.w, &slog.HandlerOptions{Level: opts.lvl}))
+	}
+
+	return logger
 }
 
 func getLogFile() *os.File {

@@ -1,19 +1,35 @@
 package http_api
 
 import (
-	"github.com/artemKapitonov/url-shortner/internal/service"
-	"github.com/artemKapitonov/url-shortner/pkg/logging"
+	"log/slog"
+
+	"github.com/artemKapitonov/url-shortener/internal/service"
+	"github.com/artemKapitonov/url-shortener/pkg/logging"
 	"github.com/labstack/echo/v4"
 )
 
+type logFormat struct {
+	Time   string `json:"time,omitempty"`
+	Method string `json:"method,omitempty"`
+	Uri    string `json:"uri,omitempty"`
+	Status string `json:"status,omitempty"`
+	Err    string `json:"err,omitempty"`
+}
+
 type HttpServerApi struct {
-	service service.Service
+	log *slog.Logger
+	UrlService
+}
+
+func New(s *service.Service, log *slog.Logger) *HttpServerApi {
+	return &HttpServerApi{
+		log:        log,
+		UrlService: s,
+	}
 }
 
 func (api *HttpServerApi) InitRoutes(logger *logging.Logger) *echo.Echo {
 	var router = echo.New()
-
-	router.Logger.SetOutput(logger.Writer)
 
 	api.initUrlGroup(router)
 

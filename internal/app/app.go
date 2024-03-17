@@ -2,24 +2,30 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"github.com/artemKapitonov/url-shortener/pkg/client/redis_client"
+	"github.com/jackc/pgx/v5/pgxpool"
+	goredis "github.com/redis/go-redis/v9"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/artemKapitonov/url-shortner/internal/app/grpcapp"
-	"github.com/artemKapitonov/url-shortner/internal/controller"
-	"github.com/artemKapitonov/url-shortner/internal/service"
-	"github.com/artemKapitonov/url-shortner/internal/service/storage"
-	"github.com/artemKapitonov/url-shortner/pkg/client/postgresql"
-	"github.com/artemKapitonov/url-shortner/pkg/logging"
-	"github.com/artemKapitonov/url-shortner/pkg/server/httpserver"
-	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/artemKapitonov/url-shortener/internal/app/grpcapp"
+	"github.com/artemKapitonov/url-shortener/internal/controller"
+	"github.com/artemKapitonov/url-shortener/internal/controller/grpc_api/convertor"
+	"github.com/artemKapitonov/url-shortener/internal/service"
+	"github.com/artemKapitonov/url-shortener/internal/service/storage"
+	"github.com/artemKapitonov/url-shortener/pkg/client/postgresql_client"
+	"github.com/artemKapitonov/url-shortener/pkg/logging"
+	"github.com/artemKapitonov/url-shortener/pkg/server/httpserver"
+
 	"golang.org/x/sync/errgroup"
 )
 
-// App struct of url-shortner application.
+// App struct of url-shortener application.
 type App struct {
+	log        *slog.Logger
 	Controller *controller.Controller
 	Service    *service.Service
 	Storage    *storage.Storage
@@ -28,97 +34,112 @@ type App struct {
 }
 
 type serversCfg struct {
-	GrpsPort string `yaml:"grpc-port"`
+	GrpcPort string `yaml:"grpc-port"`
 	HttpPort string `yaml:"http-port"`
 }
 
 // New create new App struct
 func New() *App {
+	const op = "app.New:"
+
 	var app App
-
-	var logger = logging.New()
-
-	slog.SetDefault(logger.Logger)
 
 	ctx := context.TODO()
 
-	DBcfg, err := getDBConfig()
+	loggerCfg, err := getLoggerConfig()
+
+	var logger = logging.New(loggerCfg)
+
+	app.log = logger.Logger
+
+	log := app.log.With(slog.String("op", op))
+
+	postgresCfg, err := getPostgresConfig()
 	if err != nil {
-		slog.Error("Can't get db configs Error:", err)
+		log.Error("Failed to get pool configs Error:", err)
+	}
+
+	redisCfg, err := getRedisConfig()
+	if err != nil {
+		log.Error("Failed to get redis config Error:", err)
 	}
 
 	ServersCfg, err := getServersConfig()
 	if err != nil {
-		slog.Error("Can't get servers configs Error:", err)
+		log.Error("Failed to get servers configs Error:", err)
 	}
 
-	db, err := postgresql.ConnectToDB(ctx, DBcfg)
-	if err != nil {
-		slog.Error("Can't connect to postgres database Error:", err)
+	dbType := getTypeOfStorageByFlag()
+
+	var redisDB *goredis.Client
+	var pgPool *pgxpool.Pool
+
+	switch dbType {
+	case "redis":
+		redisDB, err = redis_client.ConnectToDB(ctx, redisCfg)
+		if err != nil {
+			log.Error("Failed to connect to redis database Error:", err)
+		}
+	case "postgres":
+		pgPool, err = postgresql_client.ConnectToDB(ctx, postgresCfg)
+		if err != nil {
+			log.Error("Failed to connect to postgres database Error:", err)
+			panic(err)
+		}
 	}
 
-	app.Storage = storage.New(db)
+	log.Info(fmt.Sprintf("Successfully connected to the %s database", dbType))
 
-	app.Service = service.New(app.Storage)
+	app.Storage = storage.New(app.log, pgPool, redisDB, dbType)
 
-	app.Controller = controller.New(app.Service)
+	app.Service = service.New(app.Storage, app.log)
 
-	app.GrpcServer = grpcapp.NewGRPCServer(ServersCfg.GrpsPort)
+	conv := convertor.New()
 
-	app.HttpServer = httpserver.New(app.Controller.InitRoutes(logger), ServersCfg.HttpPort)
+	app.Controller = controller.New(app.Service, app.log, conv)
+
+	app.GrpcServer = grpcapp.NewGRPCServer(app.Controller, ServersCfg.GrpcPort, app.log)
+
+	app.HttpServer = httpserver.New(app.Controller.InitRoutes(logger), ServersCfg.HttpPort, app.log)
 
 	return &app
 }
 
-// Run method of App for runing application.
-func (a *App) Run() {
+// Run method of App for running application.
+func (a *App) Run() error {
 	g := new(errgroup.Group)
 	g.Go(a.GrpcServer.RunGRPCServer)
 	g.Go(a.HttpServer.Start)
+	ShutdownApp(a)
 
 	if err := g.Wait(); err != nil {
-		panic(err)
-	}
-
-	ShutdownApp(a)
-}
-
-func ShutdownApp(a *App) error {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
-	<-quit
-
-	err := a.HttpServer.Shutdown(context.Background())
-	if err != nil {
-		return err
-	}
-
-	a.GrpcServer.Server.GracefulStop()
-	if err != nil {
 		return err
 	}
 
 	return nil
+
 }
 
-func getServersConfig() (serversCfg, error) {
-	var cfg serversCfg
+func ShutdownApp(a *App) {
+	const op = "app.ShutdownApp:"
 
-	err := cleanenv.ReadConfig("config/servers-config.yaml", &cfg)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	<-quit
+
+	log := a.log.With(slog.String("op", op))
+
+	err := a.HttpServer.Shutdown(context.Background())
 	if err != nil {
-		return cfg, err
+		log.Warn("HTTP server stop with Error:", err)
 	}
 
-	return cfg, nil
-}
-
-func getDBConfig() (postgresql.Config, error) {
-	var cfg postgresql.Config
-
-	err := cleanenv.ReadConfig("config/db-config.yaml", &cfg)
+	a.GrpcServer.Server.GracefulStop()
 	if err != nil {
-		return cfg, err
+		log.Warn("gRPC server stop with Error:", err)
 	}
 
-	return cfg, nil
+	a.Storage.Client.Close()
+
+	log.Info("Application stopped successfully")
 }

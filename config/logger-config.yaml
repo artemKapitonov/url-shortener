@@ -1,0 +1,3 @@
+level: "debug"
+handler: "text"
+writer: "stdout"

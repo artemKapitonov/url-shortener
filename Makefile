@@ -21,15 +21,19 @@ generate:
 	make generate-api
 
 generate-api:
-	mkdir -p pkg/url-shortner_v1
+	mkdir -p pkg/url-shortener_v1
 	protoc --proto_path api \
 	--go_out=pkg --go_opt=paths=source_relative \
 	--plugin=protoc-gen-go=bin/protoc-gen-go \
 	--go-grpc_out=pkg --go-grpc_opt=paths=source_relative \
 	--plugin=protoc-gen-go-grpc=bin/protoc-gen-go-grpc \
-	api/url-shortner_v1/url-shortner.proto
+	api/url-shortener_v1/url-shortener.proto
 
 
-run:
-	go build -o ./bin/url-shortner ./cmd/url-shortner
-	./bin/url-shortner
+run-redis:
+	go build -o ./bin/url-shortener ./cmd/url-shortener
+	./bin/url-shortener -db=redis
+
+run-postgres:
+	go build -o ./bin/url-shortener ./cmd/url-shortener
+	./bin/url-shortener -db=postgres
