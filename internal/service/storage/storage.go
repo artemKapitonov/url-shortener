@@ -27,8 +27,6 @@ type Storage struct {
 	log *slog.Logger
 }
 
-// TODO: add redis_client to function params
-
 // New ...
 func New(logger *slog.Logger, pgPool *pgxpool.Pool, rdb *goredis.Client, dbType string) *Storage {
 	const op = "storage.New"
