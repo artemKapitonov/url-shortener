@@ -1,3 +1,5 @@
+is_local: true
 level: "debug"
-handler: "text"
-writer: "stdout"
+add_source: true
+is_json: true
+set_default: true

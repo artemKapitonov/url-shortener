@@ -1,9 +1,10 @@
 package redis
 
 import (
+	"log/slog"
+
 	"github.com/artemKapitonov/url-shortener/internal/entity"
 	goredis "github.com/redis/go-redis/v9"
-	"log/slog"
 )
 
 type Storage struct {

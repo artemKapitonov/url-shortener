@@ -4,7 +4,6 @@ import (
 	"log/slog"
 
 	"github.com/artemKapitonov/url-shortener/internal/service"
-	"github.com/artemKapitonov/url-shortener/pkg/logging"
 	"github.com/labstack/echo/v4"
 )
 
@@ -28,8 +27,10 @@ func New(s *service.Service, log *slog.Logger) *HttpServerApi {
 	}
 }
 
-func (api *HttpServerApi) InitRoutes(logger *logging.Logger) *echo.Echo {
+func (api *HttpServerApi) InitRoutes(logger *slog.Logger) *echo.Echo {
 	var router = echo.New()
+
+	router.Use(Logger(logger))
 
 	api.initUrlGroup(router)
 

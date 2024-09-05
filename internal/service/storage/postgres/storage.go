@@ -1,9 +1,10 @@
 package postgres
 
 import (
+	"log/slog"
+
 	"github.com/artemKapitonov/url-shortener/internal/entity"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"log/slog"
 )
 
 type Storage struct {

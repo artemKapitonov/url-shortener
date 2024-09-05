@@ -3,13 +3,14 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/artemKapitonov/url-shortener/pkg/client/redis_client"
-	"github.com/jackc/pgx/v5/pgxpool"
-	goredis "github.com/redis/go-redis/v9"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/artemKapitonov/url-shortener/pkg/client/redis_client"
+	"github.com/jackc/pgx/v5/pgxpool"
+	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/artemKapitonov/url-shortener/internal/app/grpcapp"
 	"github.com/artemKapitonov/url-shortener/internal/controller"
@@ -48,9 +49,9 @@ func New() *App {
 
 	loggerCfg, err := getLoggerConfig()
 
-	var logger = logging.New(loggerCfg)
+	var logger = logging.NewLogger(loggerCfg)
 
-	app.log = logger.Logger
+	app.log = logger
 
 	log := app.log.With(slog.String("op", op))
 

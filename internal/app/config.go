@@ -7,8 +7,8 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-func getLoggerConfig() (logging.Config, error) {
-	var cfg logging.Config
+func getLoggerConfig() (logging.LoggerOptions, error) {
+	var cfg logging.LoggerOptions
 
 	err := cleanenv.ReadConfig("config/logger-config.yaml", &cfg)
 	if err != nil {
