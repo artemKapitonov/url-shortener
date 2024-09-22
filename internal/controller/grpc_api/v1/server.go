@@ -1,7 +1,7 @@
 package grpc_api
 
 import (
-	"log/slog"
+	"context"
 
 	"github.com/artemKapitonov/url-shortener/internal/controller/grpc_api/convertor"
 	"github.com/artemKapitonov/url-shortener/internal/service"
@@ -11,20 +11,20 @@ import (
 )
 
 type GrpcServerApi struct {
-	log *slog.Logger
+	ctx context.Context
 	Convertor
 	*url_shortener_v1.UnimplementedURLShortenerServer
 	UrlService
 }
 
 func NewGRPCServerAPI(
-	log *slog.Logger,
+	ctx context.Context,
 	c *convertor.EntityConvertor,
 	unImplServ *url_shortener_v1.UnimplementedURLShortenerServer,
 	us *service.Service,
 ) *GrpcServerApi {
 	return &GrpcServerApi{
-		log:                             log,
+		ctx:                             ctx,
 		Convertor:                       c,
 		UnimplementedURLShortenerServer: unImplServ,
 		UrlService:                      us,

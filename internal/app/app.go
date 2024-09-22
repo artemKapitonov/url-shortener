@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,7 +25,7 @@ import (
 
 // App struct of url-shortener application.
 type App struct {
-	log        *slog.Logger
+	ctx        context.Context
 	Controller *controller.Controller
 	Service    *service.Service
 	Storage    *storage.Storage
@@ -41,19 +40,16 @@ type serversCfg struct {
 
 // New create new App struct
 func New() *App {
-	const op = "app.New:"
 
 	var app App
-
-	ctx := context.TODO()
 
 	loggerCfg, err := getLoggerConfig()
 
 	var logger = logging.NewLogger(loggerCfg)
 
-	app.log = logger
+	ctx := logging.ContextWithLogger(context.TODO(), logger)
 
-	log := app.log.With(slog.String("op", op))
+	log := logging.LoggerFromContext(ctx)
 
 	postgresCfg, err := getPostgresConfig()
 	if err != nil {
@@ -91,17 +87,19 @@ func New() *App {
 
 	log.Info(fmt.Sprintf("Successfully connected to the %s database", dbType))
 
-	app.Storage = storage.New(app.log, pgPool, redisDB, dbType)
+	app.ctx = ctx
 
-	app.Service = service.New(app.Storage, app.log)
+	app.Storage = storage.New(pgPool, redisDB, dbType)
+
+	app.Service = service.New(app.Storage)
 
 	conv := convertor.New()
 
-	app.Controller = controller.New(app.Service, app.log, conv)
+	app.Controller = controller.New(ctx, app.Service, conv)
 
-	app.GrpcServer = grpcapp.NewGRPCServer(app.Controller, ServersCfg.GrpcPort, app.log)
+	app.GrpcServer = grpcapp.NewGRPCServer(ctx, app.Controller, ServersCfg.GrpcPort)
 
-	app.HttpServer = httpserver.New(app.Controller.InitRoutes(logger), ServersCfg.HttpPort, app.log)
+	app.HttpServer = httpserver.New(ctx, app.Controller.InitRoutes(), ServersCfg.HttpPort)
 
 	return &app
 }
@@ -122,13 +120,11 @@ func (a *App) Run() error {
 }
 
 func ShutdownApp(a *App) {
-	const op = "app.ShutdownApp:"
-
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	log := a.log.With(slog.String("op", op))
+	log := logging.LoggerFromContext(a.ctx)
 
 	err := a.HttpServer.Shutdown(context.Background())
 	if err != nil {
@@ -140,7 +136,11 @@ func ShutdownApp(a *App) {
 		log.Warn("gRPC server stop with Error:", err)
 	}
 
-	a.Storage.Client.Close()
+	if err := a.Storage.Client.Close(); err != nil {
+		log.Error(err.Error())
+	}
+
+	log.Info("Database successfully closed")
 
 	log.Info("Application stopped successfully")
 }

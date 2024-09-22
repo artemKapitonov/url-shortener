@@ -1,38 +1,46 @@
 package redis
 
 import (
-	"log/slog"
+	"context"
+	"fmt"
 
 	"github.com/artemKapitonov/url-shortener/internal/entity"
 	goredis "github.com/redis/go-redis/v9"
 )
 
 type Storage struct {
-	log *slog.Logger
-	db  *goredis.Client
+	db *goredis.Client
 }
 
-func NewStorage(db *goredis.Client, log *slog.Logger) *Storage {
-	return &Storage{db: db, log: log}
+func NewStorage(db *goredis.Client) *Storage {
+	return &Storage{db: db}
 }
 
-func (s *Storage) Get(url entity.ShortURL) (entity.FullURL, error) {
-	panic("Implement me!!")
+func (s *Storage) Get(ctx context.Context, url entity.URL) (entity.URL, error) {
+	var err error
+
+	url.FullURL, err = s.db.Get(ctx, url.ShortURL).Result()
+	if err != nil {
+		return entity.URL{}, fmt.Errorf("Failed to get full url %s", err.Error())
+	}
+
+	return url, nil
 }
 
-func (s *Storage) Create(url entity.FullURL) (entity.ShortURL, error) {
-	panic("Implement me!!")
+func (s *Storage) Create(ctx context.Context, url entity.URL) error {
+	if err := s.db.Set(ctx, url.ShortURL, url.FullURL, 0).Err(); err != nil {
+		return fmt.Errorf("Failed to set url %s", err.Error())
+	}
+
+	return nil
 }
 
-func (s *Storage) Close() {
-	const op = "redis.Close"
-
-	log := s.log.With(slog.String("op", op))
+func (s *Storage) Close() error {
 
 	err := s.db.Close()
 	if err != nil {
-		log.Error("Failed to close redis database Error:", err)
+		return fmt.Errorf("Failed to close redis database: %s", err.Error())
 	}
 
-	log.Info("Redis database successfully closed")
+	return nil
 }

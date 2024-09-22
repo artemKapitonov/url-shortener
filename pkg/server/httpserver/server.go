@@ -3,10 +3,10 @@ package httpserver
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/artemKapitonov/url-shortener/pkg/logging"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -17,12 +17,12 @@ const (
 
 // Server with HTTP protocol.
 type Server struct {
-	log    *slog.Logger
+	ctx    context.Context
 	server *http.Server
 }
 
 // New is creating new http server.
-func New(handler http.Handler, port string, log *slog.Logger) *Server {
+func New(ctx context.Context, handler http.Handler, port string) *Server {
 	httpServer := &http.Server{
 		Handler:      handler,
 		ReadTimeout:  _defaultReadTimeout,
@@ -31,7 +31,7 @@ func New(handler http.Handler, port string, log *slog.Logger) *Server {
 	}
 
 	s := &Server{
-		log:    log,
+		ctx:    ctx,
 		server: httpServer,
 	}
 
@@ -40,9 +40,7 @@ func New(handler http.Handler, port string, log *slog.Logger) *Server {
 
 // Start is starting http server.
 func (s *Server) Start() error {
-	const op = "httpserver.Start:"
-
-	log := s.log.With(slog.String("op", op))
+	log := logging.LoggerFromContext(s.ctx)
 
 	var err error
 

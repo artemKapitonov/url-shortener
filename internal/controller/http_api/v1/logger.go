@@ -1,15 +1,19 @@
 package http_api
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
+	"github.com/artemKapitonov/url-shortener/pkg/logging"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 // Logger is echo.MiddlewareFunc logger with slog.Logger.
-func Logger(log *slog.Logger) echo.MiddlewareFunc {
+func Logger(ctx context.Context) echo.MiddlewareFunc {
+	log := logging.LoggerFromContext(ctx)
+
 	log = log.With(
 		slog.String("component", "middleware/logger"),
 	)

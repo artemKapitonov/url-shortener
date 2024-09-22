@@ -1,36 +1,29 @@
 package postgres
 
 import (
-	"log/slog"
+	"context"
 
 	"github.com/artemKapitonov/url-shortener/internal/entity"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Storage struct {
-	log *slog.Logger
-	db  *pgxpool.Pool
+	db *pgxpool.Pool
 }
 
-func NewStorage(db *pgxpool.Pool, log *slog.Logger) *Storage {
-	return &Storage{db: db, log: log}
+func NewStorage(db *pgxpool.Pool) *Storage {
+	return &Storage{db: db}
 }
 
-func (s *Storage) Get(url entity.ShortURL) (entity.FullURL, error) {
+func (s *Storage) Get(ctx context.Context, url entity.URL) (entity.URL, error) {
 	panic("Implement me!!")
 }
 
-func (s *Storage) Create(url entity.FullURL) (entity.ShortURL, error) {
+func (s *Storage) Create(ctx context.Context, url entity.URL) error {
 	panic("Implement me!!")
 }
 
-func (s *Storage) Close() {
-	const op = "postgres.Close"
-
-	log := s.log.With(slog.String("op", op))
-
+func (s *Storage) Close() error {
 	s.db.Close()
-
-	log.Info("Postgres database successfully closed")
-
+	return nil
 }

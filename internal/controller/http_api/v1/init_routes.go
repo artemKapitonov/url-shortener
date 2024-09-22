@@ -1,37 +1,30 @@
 package http_api
 
 import (
-	"log/slog"
+	"context"
 
 	"github.com/artemKapitonov/url-shortener/internal/service"
 	"github.com/labstack/echo/v4"
 )
 
-type logFormat struct {
-	Time   string `json:"time,omitempty"`
-	Method string `json:"method,omitempty"`
-	Uri    string `json:"uri,omitempty"`
-	Status string `json:"status,omitempty"`
-	Err    string `json:"err,omitempty"`
-}
-
 type HttpServerApi struct {
-	log *slog.Logger
+	ctx context.Context
 	UrlService
 }
 
-func New(s *service.Service, log *slog.Logger) *HttpServerApi {
+func New(ctx context.Context, s *service.Service) *HttpServerApi {
 	return &HttpServerApi{
-		log:        log,
+		ctx:        ctx,
 		UrlService: s,
 	}
 }
 
-func (api *HttpServerApi) InitRoutes(logger *slog.Logger) *echo.Echo {
+func (api *HttpServerApi) InitRoutes() *echo.Echo {
 	var router = echo.New()
 
-	router.Use(Logger(logger))
+	router.Use(Logger(api.ctx))
 
+	router.GET("/:url", api.getFullUrl)
 	api.initUrlGroup(router)
 
 	return router
@@ -39,8 +32,6 @@ func (api *HttpServerApi) InitRoutes(logger *slog.Logger) *echo.Echo {
 
 func (api *HttpServerApi) initUrlGroup(r *echo.Echo) {
 	url := r.Group("/url")
-	{
-		url.GET("", api.getFullUrl)
-		url.POST("", api.createShortUrl)
-	}
+	url.POST("", api.createShortUrl)
+
 }

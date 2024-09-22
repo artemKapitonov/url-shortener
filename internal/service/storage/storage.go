@@ -1,12 +1,13 @@
 package storage
 
 import (
+	"context"
 	"errors"
+
 	"github.com/artemKapitonov/url-shortener/internal/entity"
 	"github.com/artemKapitonov/url-shortener/internal/service/storage/postgres"
 	"github.com/artemKapitonov/url-shortener/internal/service/storage/redis"
 	goredis "github.com/redis/go-redis/v9"
-	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -17,34 +18,32 @@ const (
 )
 
 type Client interface {
-	Get(url entity.ShortURL) (entity.FullURL, error)
-	Create(url entity.FullURL) (entity.ShortURL, error)
-	Close()
+	Get(ctx context.Context, url entity.URL) (entity.URL, error)
+	Create(ctx context.Context, url entity.URL) error
+	Close() error
 }
 
 type Storage struct {
 	Client
-	log *slog.Logger
 }
 
 // New ...
-func New(logger *slog.Logger, pgPool *pgxpool.Pool, rdb *goredis.Client, dbType string) *Storage {
+func New(pgPool *pgxpool.Pool, rdb *goredis.Client, dbType string) *Storage {
 	const op = "storage.New"
 	var storageClient Client
 
-	log := logger.With(slog.String("op", op))
+	//log := logging.LoggerFromContext(ctx).With(slog.String("op", op))
 
 	switch dbType {
 	case postgresDatabase:
-		storageClient = postgres.NewStorage(pgPool, logger)
+		storageClient = postgres.NewStorage(pgPool)
 	case redisDatabase:
-		storageClient = redis.NewStorage(rdb, logger)
+		storageClient = redis.NewStorage(rdb)
 	default:
 		panic(errors.New("invalid storage flag"))
 	}
 
 	return &Storage{
 		Client: storageClient,
-		log:    log,
 	}
 }

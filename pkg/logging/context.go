@@ -2,7 +2,6 @@ package logging
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 )
 
@@ -15,11 +14,11 @@ func ContextWithLogger(ctx context.Context, l *Logger) context.Context {
 	return context.WithValue(ctx, ctxLogger{}, l)
 }
 
-// loggerFromContext returns logger from context.
-func loggerFromContext(ctx context.Context) (*Logger, error) {
+// LoggerFromContext returns logger from context.
+func LoggerFromContext(ctx context.Context) *Logger {
 	if l, ok := ctx.Value(ctxLogger{}).(*slog.Logger); ok {
-		return l, nil
+		return l
 	}
 
-	return nil, errors.New("Logger not founded")
+	panic(ErrLoggerNotFound)
 }

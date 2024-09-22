@@ -1,37 +1,37 @@
 package grpcapp
 
 import (
+	"context"
 	"fmt"
+	"net"
+
 	"github.com/artemKapitonov/url-shortener/internal/controller"
 	"github.com/artemKapitonov/url-shortener/internal/controller/grpc_api/v1"
-	"log/slog"
-	"net"
+	"github.com/artemKapitonov/url-shortener/pkg/logging"
 
 	"google.golang.org/grpc"
 )
 
 type GRPCApp struct {
-	log    *slog.Logger
+	ctx    context.Context
 	port   string
 	Server *grpc.Server
 }
 
-func NewGRPCServer(controller *controller.Controller, port string, log *slog.Logger) *GRPCApp {
+func NewGRPCServer(ctx context.Context, controller *controller.Controller, port string) *GRPCApp {
 	grpcServer := grpc.NewServer()
 
 	grpc_api.Register(grpcServer, controller.GrpcServerApi)
 
 	return &GRPCApp{
-		log:    log,
+		ctx:    ctx,
 		port:   port,
 		Server: grpcServer,
 	}
 }
 
 func (a *GRPCApp) RunGRPCServer() error {
-	const op = "grpcapp.RunGRPCServer:"
-
-	log := a.log.With(slog.String("op", op))
+	log := logging.LoggerFromContext(a.ctx)
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%s", a.port))
 	if err != nil {

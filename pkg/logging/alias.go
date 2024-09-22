@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"errors"
 	"log/slog"
 	"time"
 )
@@ -23,10 +24,11 @@ type (
 )
 
 var (
-	NewTextHandler = slog.NewTextHandler
-	NewJSONHandler = slog.NewJSONHandler
-	New            = slog.New
-	SetDefault     = slog.SetDefault
+	ErrLoggerNotFound = errors.New("logger not found in context")
+	NewTextHandler    = slog.NewTextHandler
+	NewJSONHandler    = slog.NewJSONHandler
+	New               = slog.New
+	SetDefault        = slog.SetDefault
 
 	StringAttr   = slog.String
 	BoolAttr     = slog.Bool
